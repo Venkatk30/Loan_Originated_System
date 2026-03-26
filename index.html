@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Loan Origination System</title>
+
+<style>
+body {
+    font-family: Arial;
+    margin: 0;
+    height: 100vh;
+
+    background-image: 
+        linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)),
+        url('https://images.unsplash.com/photo-1556740738-b6a63e27c4df?q=80&w=1600&auto=format&fit=crop');
+
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+}
+
+.top-bar {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+}
+
+.top-bar button {
+    padding: 8px 15px;
+    background: #1b4f72;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-left:5px;
+}
+
+.container, .main-container, .manager-container {
+    margin: auto;
+    margin-top: 80px;
+    padding: 30px;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(12px);
+    border-radius: 10px;
+}
+
+.container { width: 400px; }
+.main-container { width: 600px; }
+.manager-container { width: 85%; }
+
+h2 { color: white; text-align: center; }
+label { color: white; font-weight: bold; }
+
+input, select {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    border-radius: 5px;
+    border: none;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    background: #1b4f72;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    margin-top:10px;
+}
+
+button:hover { background: #154360; }
+
+.welcome {
+    color: white;
+    text-align: right;
+    margin-bottom: 10px;
+}
+
+.result {
+    background: white;
+    padding: 10px;
+    margin-top: 15px;
+    border-radius: 8px;
+}
+
+/* Table */
+table {
+    width: 100%;
+    background: white;
+    border-collapse: collapse;
+    margin-top: 20px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+th, td {
+    padding: 12px;
+    border: 1px solid #ccc;
+    text-align: center;
+}
+
+th {
+    background: #2c3e50;
+    color: white;
+}
+
+.action-bar{
+    display:flex;
+    gap:10px;
+}
+
+
+</style>
+</head>
+
+<body>
+
+<div class="top-bar" id="topBar" style="display:none;">
+   
+    <button onclick="logout()">Logout</button>
+</div>
+
+<!-- LOGIN -->
+<div class="container" id="loginPage">
+    <h2>Login</h2>
+
+    <label>Username</label>
+    <input id="username">
+
+    <label>Password</label>
+    <input type="password" id="password">
+
+    <button onclick="login()">Login</button>
+    <div id="error" style="color:red;"></div>
+</div>
+
+<!-- ADMIN -->
+<div class="main-container" id="adminPage" style="display:none;">
+    <div class="welcome" id="adminWelcome"></div>
+    <h2>Admin - Loan Entry</h2>
+
+    <input id="loanid" placeholder="Loan ID">
+    <input id="name" placeholder="Customer Name">
+    <input id="ssn" placeholder="SSN">
+    <input id="amount" placeholder="Loan Amount">
+    <input id="income" placeholder="Income">
+
+    <select id="type">
+        <option>Personal</option>
+        <option>Auto</option>
+        <option>Home</option>
+    </select>
+
+    <button onclick="submitLoan()">Submit</button>
+    <div id="result" class="result"></div>
+</div>
+
+<!-- MANAGER -->
+<div class="manager-container" id="managerPage" style="display:none;">
+    <div class="welcome" id="managerWelcome"></div>
+    <h2>Manager Dashboard</h2>
+<div class="action-bar">
+    <button onclick="downloadExcel()">⬇ Download Excel</button>
+    <button onclick="clearData()">🧹 Clear Data</button>
+</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Loan ID</th>
+                <th>Name</th>
+                <th>SSN</th>
+                <th>Amount</th>
+                <th>Income</th>
+                <th>Type</th>
+                <th>Submitted Date</th>
+            </tr>
+        </thead>
+        <tbody id="tableData"></tbody>
+    </table>
+	
+</div>
+
+
+<script>
+
+function maskSSN(ssn){
+    if(!ssn) return "N/A";
+    return "***-**-" + ssn.slice(-4);
+}
+
+// CLEAN OLD DATA ONCE
+if(!localStorage.getItem("cleaned")){
+    localStorage.removeItem("loans");
+    localStorage.setItem("cleaned", "true");
+}
+
+function logout(){
+    location.reload();
+}
+
+function login(){
+    let user = document.getElementById("username").value;
+    let pass = document.getElementById("password").value;
+
+    if(user==="admin" && pass==="admin123"){
+        document.getElementById("loginPage").style.display="none";
+        document.getElementById("adminPage").style.display="block";
+        document.getElementById("adminWelcome").innerHTML="Welcome, Admin";
+        document.getElementById("topBar").style.display="block";
+    }
+    else if(user==="manager" && pass==="manager123"){
+        document.getElementById("loginPage").style.display="none";
+        document.getElementById("managerPage").style.display="block";
+        document.getElementById("managerWelcome").innerHTML="Welcome, Manager";
+        document.getElementById("topBar").style.display="block";
+        loadTable();
+    }
+    else{
+        document.getElementById("error").innerHTML="Invalid Credentials";
+    }
+}
+
+function submitLoan(){
+
+    let data = {
+        loanid: document.getElementById("loanid").value,
+        name: document.getElementById("name").value,
+        ssn: document.getElementById("ssn").value,
+        amount: document.getElementById("amount").value,
+        income: document.getElementById("income").value,
+        type: document.getElementById("type").value,
+        submittedDate: new Date().toLocaleString()
+    };
+
+    let loans = JSON.parse(localStorage.getItem("loans")) || [];
+    loans.push(data);
+    localStorage.setItem("loans", JSON.stringify(loans));
+
+    document.getElementById("result").innerHTML="✅ Loan Application Created";
+
+    document.getElementById("loanid").value="";
+    document.getElementById("name").value="";
+    document.getElementById("ssn").value="";
+    document.getElementById("amount").value="";
+    document.getElementById("income").value="";
+}
+
+function loadTable(){
+    let loans = JSON.parse(localStorage.getItem("loans")) || [];
+
+    let rows="";
+    loans.forEach(l => {
+        rows += `<tr>
+            <td>${l.loanid || 'N/A'}</td>
+            <td>${l.name || 'N/A'}</td>
+           	 <td>${maskSSN(l.ssn)}</td>
+            <td>${l.amount || 'N/A'}</td>
+            <td>${l.income || 'N/A'}</td>
+            <td>${l.type || 'N/A'}</td>
+            <td>${l.submittedDate || 'N/A'}</td>
+        </tr>`;
+    });
+
+    document.getElementById("tableData").innerHTML = rows;
+}
+
+// DOWNLOAD EXCEL (CSV)
+function downloadExcel(){
+    let loans = JSON.parse(localStorage.getItem("loans")) || [];
+
+    if(loans.length === 0){
+        alert("No data available");
+        return;
+    }
+
+    let csv = "Loan ID,Name,SSN,Amount,Income,Type,Submitted Date\n";
+
+    loans.forEach(l => {
+        csv += `${l.loanid},${l.name},${l.ssn},${l.amount},${l.income},${l.type},${l.submittedDate}\n`;
+    });
+
+    let blob = new Blob([csv], { type: 'text/csv' });
+    let link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'LoanData.csv';
+    link.click();
+}
+
+// CLEAR DATA
+function clearData(){
+    if(confirm("Clear all loan data?")){
+        localStorage.removeItem("loans");
+        alert("Data cleared successfully");
+        loadTable();
+    }
+}
+
+</script>
+
+</body>
+</html>
